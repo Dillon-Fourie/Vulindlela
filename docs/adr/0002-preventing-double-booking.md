@@ -14,7 +14,7 @@ The Booking service will enforce a unique database index on the SlotId column of
 
 Entity Framework Core will configure the constraint as shown below:
 
-modelBuilder.Entity()
+modelBuilder.Entity<Appointment>()
     .HasIndex(appointment => appointment.SlotId)
     .IsUnique();
 
@@ -28,14 +28,14 @@ Application-level availability checking only. Rejected, because two requests pro
 
 In-memory locking. Rejected because an in-memory lock only guarantees requests handled by the same application process. If the Booking service runs multiple instances, then each instance has its own lock and cannot prevent the other instance from booking the same slot.
 
-Unique constraint on the database. Selected, because SQLite enforces unique constraints itself. Thus, the constraint ensures that an appointment can’t be booked for the same slot by more than one person, regardless of the number of requests reaching the service.
+Unique constraint on the database. Selected, because SQLite enforces unique constraints itself. Thus, the constraint ensures that an appointment cant be booked for the same slot by more than one person, regardless of the number of requests reaching the service.
 
 # Consequences
 
 What we gain. 
-The database ensures that an appointment slot cannot be assigned to more than one appointment. This protects against concurrent booking requests and enforces the rule independently of the application’s availability checks.
+The database ensures that an appointment slot cannot be assigned to more than one appointment. This protects against concurrent booking requests and enforces the rule independently of the applications availability checks.
 
 What we accept. 
-The application has to recognize and take action for a violation of the database constraint. A citizen may get a ‘Conflict’ message when a different request is successful in booking the slot before theirs. The design also assumes that each appointment slot can only have one appointment. In the future if we need to support group bookings we would have to change the data model and concurrency strategy.
+The application has to recognize and take action for a violation of the database constraint. A citizen may get a Conflict message when a different request is successful in booking the slot before theirs. The design also assumes that each appointment slot can only have one appointment. In the future if we need to support group bookings we would have to change the data model and concurrency strategy.
 
 These consequences are acceptable, to ensure no duplicate appointments are made.

@@ -1,12 +1,49 @@
+
+using Microsoft.EntityFrameworkCore;
+using Vulindlela.Clearance.Api.Data;
+using Vulindlela.Clearance.Api.Repositories;
+using Vulindlela.Clearance.Api.Services;
+using Vulindlela.Clearance.Api.BackgroundTasks;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+// Register API controllers.
+builder.Services.AddControllers();
+
+// Enable OpenAPI documentation.
 builder.Services.AddOpenApi();
+
+// Register the Clearance service's own SQLite database.
+// The Booking service must never access this database.
+builder.Services.AddDbContext<ClearanceContext>(options =>
+    options.UseSqlite("Data Source=clearance.db"));
+
+    builder.Services.AddScoped<
+    IClearanceRepository,
+    ClearanceRepository>();
+
+    builder.Services.AddScoped<
+    IDocumentVerificationService,
+    DocumentVerificationService>();
+
+    builder.Services.AddSingleton<
+    IClearanceQueue,
+    ClearanceQueue>();
+
+    builder.Services.AddHostedService<ClearanceBackgroundWorker>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Create the Clearance database and tables on startup.
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider
+        .GetRequiredService<ClearanceContext>();
+
+    await dbContext.Database.EnsureCreatedAsync();
+}
+
+// Enable OpenAPI in development.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -14,28 +51,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+// Enable controller endpoints.
+app.MapControllers();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

@@ -2,6 +2,7 @@ using Vulindlela.Booking.Api.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Vulindlela.Booking.Api.Data;
 using Vulindlela.Booking.Api.Services;
+using Vulindlela.Booking.Api.Clients;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,17 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IBookingService,
     BookingService>();
+
+builder.Services.AddHttpClient<
+    IClearanceNotificationClient,
+    ClearanceNotificationClient>(client =>
+{
+    client.BaseAddress = new Uri(
+        builder.Configuration["Services:ClearanceApi"]
+        ?? "http://localhost:5165/");
+
+    client.Timeout = TimeSpan.FromSeconds(2);
+});
 
 var app = builder.Build();
 

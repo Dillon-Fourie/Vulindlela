@@ -64,4 +64,16 @@ public class BookingRepository : IBookingRepository
             .FirstOrDefaultAsync(
                 a => a.AppointmentId == appointmentId);
     }
+
+    
+    public async Task<List<Appointment>> GetAppointmentsByCitizenIdAsync(
+        string citizenId)
+    {
+        return await _dbContext.Appointments
+            .Include(a => a.Slot)
+            .Where(a => a.CitizenId == citizenId)
+            .OrderByDescending(a => a.Slot.StartTime)
+            .ToListAsync();
+    }
+
 }

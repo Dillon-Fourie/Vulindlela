@@ -91,4 +91,35 @@ public class AppointmentsController : ControllerBase
             }
         });
     }
+
+
+    [HttpGet("citizen/{citizenId}")]
+    public async Task<IActionResult> GetCitizenAppointments(string citizenId)
+    {
+        if (string.IsNullOrWhiteSpace(citizenId))
+        {
+            return BadRequest("A valid citizen ID is required.");
+        }
+
+        var appointments = await _bookingService
+            .GetAppointmentsByCitizenIdAsync(citizenId);
+
+        return Ok(appointments.Select(a => new
+        {
+            a.AppointmentId,
+            a.SlotId,
+            a.CitizenId,
+            a.CitizenName,
+            a.ServiceType,
+            a.BookingDate,
+            Slot = a.Slot == null ? null : new
+            {
+                a.Slot.BranchId,
+                a.Slot.StartTime,
+                a.Slot.EndTime
+            }
+        }));
+    }
+
+
 }

@@ -1,0 +1,87 @@
+
+@model Vulindlela.Portal.Models.CreateBookingViewModel
+
+@{
+    ViewData["Title"] = "Book Appointment";
+}
+
+<div class="container mt-4">
+    <h1>Book an Appointment</h1>
+
+    <p class="text-muted">
+        Complete the form below to book your appointment.
+    </p>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <form asp-controller="Appointments"
+                  asp-action="Create"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <div asp-validation-summary="All"
+                     class="text-danger mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="SlotId" class="form-label"></label>
+                    <input asp-for="SlotId"
+                           class="form-control"
+                           type="number"
+                           min="1" />
+                    <span asp-validation-for="SlotId"
+                          class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="CitizenId" class="form-label"></label>
+                    <input asp-for="CitizenId" class="form-control" />
+                    <span asp-validation-for="CitizenId"
+                          class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="CitizenIdNumber" class="form-label"></label>
+                    <input asp-for="CitizenIdNumber" class="form-control" />
+                    <span asp-validation-for="CitizenIdNumber"
+                          class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="CitizenName" class="form-label"></label>
+                    <input asp-for="CitizenName" class="form-control" />
+                    <span asp-validation-for="CitizenName"
+                          class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ServiceType" class="form-label"></label>
+                    <select asp-for="ServiceType" class="form-select">
+                        <option value="">Select a service</option>
+                        <option value="ID Application">ID Application</option>
+                        <option value="Passport Application">Passport Application</option>
+                        <option value="Driver's Licence Renewal">
+                            Driver's Licence Renewal
+                        </option>
+                    </select>
+                    <span asp-validation-for="ServiceType"
+                          class="text-danger"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Confirm Booking
+                </button>
+
+                <a asp-controller="Appointments"
+                   asp-action="MyAppointments"
+                   class="btn btn-outline-secondary ms-2">
+                    My Appointments
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

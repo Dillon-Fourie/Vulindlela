@@ -25,4 +25,7 @@ public interface IBookingRepository
     // Retrieve an appointment by its ID.
     Task<Appointment?> GetAppointmentByIdAsync(
         int appointmentId);
+    
+    Task<List<Appointment>> GetAppointmentsByCitizenIdAsync(string citizenId);
+
 }

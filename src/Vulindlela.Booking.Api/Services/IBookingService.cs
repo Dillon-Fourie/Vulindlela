@@ -15,6 +15,9 @@ public interface IBookingService
 
     Task<Appointment?> GetAppointmentAsync(
         int appointmentId);
+
+    Task<List<Appointment>> GetAppointmentsByCitizenIdAsync(string citizenId);
+
 }
 
 public class BookingRequest

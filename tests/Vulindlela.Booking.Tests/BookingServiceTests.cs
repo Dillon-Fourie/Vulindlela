@@ -57,13 +57,18 @@ public class BookingServiceTests
     }
 
     // Helper: Create a BookingService using the supplied context.
+    
     private static BookingService CreateService(
-        BookingContext context)
+        BookingContext context,
+        FakeClearanceNotificationClient? clearanceClient = null)
     {
         var repository = new BookingRepository(context);
 
-        return new BookingService(repository);
+        return new BookingService(
+            repository,
+            clearanceClient ?? new FakeClearanceNotificationClient());
     }
+
 
     // TEST 1: A valid booking should succeed.
     [Fact]
@@ -286,4 +291,46 @@ public class BookingServiceTests
 
         Assert.Equal(1, savedCount);
     }
+
+    
+// TEST 7: A Clearance outage must not prevent
+// a successfully saved appointment.
+[Fact]
+public async Task ClearanceUnavailable_BookingStillSucceeds()
+{
+    using var fixture = new SqliteTestFixture();
+
+    var slot = CreateFutureSlot(fixture);
+
+    await using var context = fixture.CreateContext();
+
+    var clearanceClient = new FakeClearanceNotificationClient
+    {
+        ShouldThrow = true
+    };
+
+    var service = CreateService(context, clearanceClient);
+
+    var result = await service.BookAppointmentAsync(
+        CreateRequest(slot.SlotId));
+
+    // Booking must succeed despite the notification failure.
+    Assert.True(result.Success);
+    Assert.NotNull(result.Appointment);
+
+    // Confirm that Booking attempted the notification.
+    Assert.Equal(1, clearanceClient.NotificationCount);
+
+    // Confirm that the appointment was actually saved.
+    await using var verificationContext =
+        fixture.CreateContext();
+
+    var savedCount =
+        await verificationContext.Appointments.CountAsync(
+            a => a.SlotId == slot.SlotId);
+
+    Assert.Equal(1, savedCount);
+}
+
+
 }

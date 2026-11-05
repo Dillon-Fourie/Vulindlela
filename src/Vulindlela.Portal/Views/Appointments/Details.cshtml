@@ -1,0 +1,102 @@
+
+@model Vulindlela.Portal.Models.AppointmentDetailsViewModel
+
+@{
+    ViewData["Title"] = "Appointment Details";
+    var appointment = Model.Appointment;
+}
+
+<div class="container mt-4">
+    <h1>Appointment Details</h1>
+
+    <div class="alert alert-success mt-3">
+        <strong>Appointment Confirmed!</strong>
+        Your booking has been saved successfully.
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h4>Booking Information</h4>
+        </div>
+
+        <div class="card-body">
+            <p><strong>Appointment ID:</strong> @appointment.AppointmentId</p>
+            <p><strong>Citizen:</strong> @appointment.CitizenName</p>
+            <p><strong>Citizen ID:</strong> @appointment.CitizenId</p>
+            <p><strong>Service:</strong> @appointment.ServiceType</p>
+
+            @if (appointment.Slot != null)
+            {
+                <p>
+                    <strong>Date:</strong>
+                    @appointment.Slot.StartTime.ToString("dd MMMM yyyy")
+                </p>
+
+                <p>
+                    <strong>Time:</strong>
+                    @appointment.Slot.StartTime.ToString("HH:mm")
+                    -
+                    @appointment.Slot.EndTime.ToString("HH:mm")
+                </p>
+
+                <p>
+                    <strong>Branch ID:</strong>
+                    @appointment.Slot.BranchId
+                </p>
+            }
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h4>Document Clearance</h4>
+        </div>
+
+        <div class="card-body">
+
+            @if (!Model.IsClearanceAvailable)
+            {
+                <div class="alert alert-warning">
+                    <strong>Clearance Service Unavailable</strong>
+                    <p class="mb-0">@Model.ClearanceMessage</p>
+                </div>
+            }
+            else if (!Model.HasClearanceSubmission)
+            {
+                <div class="alert alert-info">
+                    <strong>Awaiting Document Submission</strong>
+                    <p class="mb-0">@Model.ClearanceMessage</p>
+                </div>
+            }
+            else if (Model.Clearance != null)
+            {
+                <p>
+                    <strong>Status:</strong>
+                    @Model.Clearance.Status
+                </p>
+
+                <p>@Model.ClearanceMessage</p>
+
+                @if (Model.Clearance.MissingDocuments.Any())
+                {
+                    <h5>Missing Documents</h5>
+
+                    <ul>
+                        @foreach (var document in Model.Clearance.MissingDocuments)
+                        {
+                            <li>@document.DocumentType</li>
+                        }
+                    </ul>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a asp-controller="Home"
+           asp-action="Index"
+           class="btn btn-secondary">
+            Back to Home
+        </a>
+    </div>
+</div>

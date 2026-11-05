@@ -1,6 +1,7 @@
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Vulindlela.Booking.Api.Clients;
 using Vulindlela.Booking.Api.Models;
 using Vulindlela.Booking.Api.Repositories;
 
@@ -9,10 +10,14 @@ namespace Vulindlela.Booking.Api.Services;
 public class BookingService : IBookingService
 {
     private readonly IBookingRepository _repository;
+    private readonly IClearanceNotificationClient _clearanceClient;
 
-    public BookingService(IBookingRepository repository)
+    public BookingService(
+        IBookingRepository repository,
+        IClearanceNotificationClient clearanceClient)
     {
         _repository = repository;
+        _clearanceClient = clearanceClient;
     }
 
     public async Task<List<Branch>> GetBranchesAsync()
@@ -118,20 +123,14 @@ public class BookingService : IBookingService
             BookingDate = DateTime.UtcNow
         };
 
+        Appointment savedAppointment;
+
         try
         {
             // The database unique constraint is the final
             // protection against concurrent double bookings.
-            var savedAppointment = await _repository
+            savedAppointment = await _repository
                 .AddAppointmentAsync(appointment);
-
-            return new BookingResult
-            {
-                Success = true,
-                Error = BookingError.None,
-                Message = "Appointment booked successfully.",
-                Appointment = savedAppointment
-            };
         }
         catch (DbUpdateException ex)
             when (ex.InnerException is SqliteException sqliteEx &&
@@ -153,5 +152,46 @@ public class BookingService : IBookingService
             // Another unique constraint failed unexpectedly.
             throw;
         }
+
+        // The appointment has been committed to Booking's database.
+        // Clearance is a separate service, so notification failures
+        // must never undo the booking.
+        try
+        {
+            await _clearanceClient.NotifyAppointmentCreatedAsync(
+                savedAppointment.AppointmentId,
+                savedAppointment.CitizenId,
+                savedAppointment.ServiceType);
+        }
+        catch (Exception ex)
+        {
+            // The HTTP client already handles expected network failures.
+            // This also protects the completed booking against an
+            // unexpected notification error.
+            System.Diagnostics.Debug.WriteLine(
+                $"Clearance notification failed: {ex.Message}");
+        }
+
+        return new BookingResult
+        {
+            Success = true,
+            Error = BookingError.None,
+            Message = "Appointment booked successfully.",
+            Appointment = savedAppointment
+        };
     }
+
+    
+    public async Task<List<Appointment>> GetAppointmentsByCitizenIdAsync(
+        string citizenId)
+    {
+        if (string.IsNullOrWhiteSpace(citizenId))
+        {
+            return new List<Appointment>();
+        }
+
+        return await _repository.GetAppointmentsByCitizenIdAsync(
+            citizenId.Trim());
+    }
+
 }

@@ -1,0 +1,171 @@
+
+@model List<Vulindlela.Portal.Models.AppointmentDetailsViewModel>
+
+@{
+    ViewData["Title"] = "My Appointments";
+    string citizenId = ViewBag.CitizenId as string ?? "";
+    string? errorMessage = ViewBag.ErrorMessage as string;
+}
+
+<div class="container mt-4">
+    <h1>My Appointments</h1>
+
+    <p class="text-muted">
+        Enter your Citizen ID to view your existing appointments
+        and document clearance information.
+    </p>
+
+    <form asp-controller="Appointments"
+          asp-action="MyAppointments"
+          method="get"
+          class="mb-4">
+
+        <div class="row g-3 align-items-end">
+            <div class="col-md-8">
+                <label for="citizenId" class="form-label">
+                    Citizen ID
+                </label>
+
+                <input type="text"
+                       id="citizenId"
+                       name="citizenId"
+                       value="@citizenId"
+                       class="form-control"
+                       placeholder="Enter your Citizen ID"
+                       required />
+            </div>
+
+            <div class="col-md-4">
+                <button type="submit"
+                        class="btn btn-primary w-100">
+                    Find My Appointments
+                </button>
+            </div>
+        </div>
+    </form>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(citizenId))
+    {
+        if (Model.Count == 0)
+        {
+            <div class="alert alert-info">
+                No appointments were found for this Citizen ID.
+            </div>
+        }
+        else
+        {
+            <h3 class="mb-3">
+                Your Appointments (@Model.Count)
+            </h3>
+
+            @foreach (var item in Model)
+            {
+                var appointment = item.Appointment;
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            Appointment #@appointment.AppointmentId
+                        </h5>
+                    </div>
+
+                    <div class="card-body">
+                        <p>
+                            <strong>Citizen:</strong>
+                            @appointment.CitizenName
+                        </p>
+
+                        <p>
+                            <strong>Service:</strong>
+                            @appointment.ServiceType
+                        </p>
+
+                        @if (appointment.Slot != null)
+                        {
+                            <p>
+                                <strong>Date:</strong>
+                                @appointment.Slot.StartTime.ToString("dd MMMM yyyy")
+                            </p>
+
+                            <p>
+                                <strong>Time:</strong>
+                                @appointment.Slot.StartTime.ToString("HH:mm")
+                                -
+                                @appointment.Slot.EndTime.ToString("HH:mm")
+                            </p>
+
+                            <p>
+                                <strong>Branch ID:</strong>
+                                @appointment.Slot.BranchId
+                            </p>
+                        }
+
+                        <hr />
+
+                        <h5>Document Clearance</h5>
+
+                        @if (!item.IsClearanceAvailable)
+                        {
+                            <div class="alert alert-warning">
+                                <strong>Clearance Service Unavailable</strong>
+                                <p class="mb-0">
+                                    @item.ClearanceMessage
+                                </p>
+                            </div>
+                        }
+                        else if (!item.HasClearanceSubmission)
+                        {
+                            <div class="alert alert-info">
+                                <strong>Awaiting Document Submission</strong>
+                                <p class="mb-0">
+                                    @item.ClearanceMessage
+                                </p>
+                            </div>
+                        }
+                        else if (item.Clearance != null)
+                        {
+                            <p>
+                                <strong>Status:</strong>
+                                @item.Clearance.Status
+                            </p>
+
+                            <p>@item.ClearanceMessage</p>
+
+                            @if (item.Clearance.MissingDocuments.Any())
+                            {
+                                <h6>Missing Documents</h6>
+
+                                <ul>
+                                    @foreach (var document in
+                                        item.Clearance.MissingDocuments)
+                                    {
+                                        <li>@document.DocumentType</li>
+                                    }
+                                </ul>
+                            }
+                        }
+
+                        <a asp-controller="Appointments"
+                           asp-action="Details"
+                           asp-route-id="@appointment.AppointmentId"
+                           class="btn btn-outline-primary">
+                            View Details
+                        </a>
+                    </div>
+                </div>
+            }
+        }
+    }
+
+    <a asp-controller="Home"
+       asp-action="Index"
+       class="btn btn-secondary mt-2">
+        Back to Home
+    </a>
+</div>

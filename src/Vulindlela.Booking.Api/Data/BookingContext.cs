@@ -20,11 +20,13 @@ public class BookingContext : DbContext
     public DbSet<Appointment> Appointments
         => Set<Appointment>();
 
+    public DbSet<BookingAccessLog> BookingAccessLogs
+        => Set<BookingAccessLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Configure primary keys
         modelBuilder.Entity<Branch>()
             .HasKey(b => b.BranchId);
 
@@ -34,34 +36,61 @@ public class BookingContext : DbContext
         modelBuilder.Entity<Appointment>()
             .HasKey(a => a.AppointmentId);
 
-        // A unique code must be assigned to each branch.
+        modelBuilder.Entity<BookingAccessLog>()
+            .HasKey(a => a.Id);
+
         modelBuilder.Entity<Branch>()
             .HasIndex(b => b.BranchCode)
             .IsUnique();
 
-        // There cannot be two slots starting at the same time for a branch.
         modelBuilder.Entity<AppointmentSlot>()
             .HasIndex(s => new { s.BranchId, s.StartTime })
             .IsUnique();
 
-        // CRITICAL: There can only be one appointment per slot.
         modelBuilder.Entity<Appointment>()
             .HasIndex(a => a.SlotId)
             .IsUnique();
 
-        // There can be many appointment slots per branch
         modelBuilder.Entity<AppointmentSlot>()
             .HasOne(s => s.Branch)
             .WithMany(b => b.Slots)
             .HasForeignKey(s => s.BranchId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Each appointment needs to belong to a slot
-        // Each slot can only have one appointment
         modelBuilder.Entity<Appointment>()
             .HasOne(a => a.Slot)
             .WithOne(s => s.Appointment)
             .HasForeignKey<Appointment>(a => a.SlotId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<BookingAccessLog>()
+            .Property(a => a.CitizenId)
+            .IsRequired();
+
+        modelBuilder.Entity<BookingAccessLog>()
+            .Property(a => a.AccessedBy)
+            .IsRequired();
+
+        modelBuilder.Entity<BookingAccessLog>()
+            .Property(a => a.AccessedByRole)
+            .IsRequired();
+
+        modelBuilder.Entity<BookingAccessLog>()
+            .Property(a => a.Reason)
+            .IsRequired();
+
+        modelBuilder.Entity<BookingAccessLog>()
+            .Property(a => a.ResourceType)
+            .IsRequired();
+
+        modelBuilder.Entity<BookingAccessLog>()
+            .Property(a => a.ResourceId)
+            .IsRequired();
+
+        modelBuilder.Entity<BookingAccessLog>()
+            .HasIndex(a => a.CitizenId);
+
+        modelBuilder.Entity<BookingAccessLog>()
+            .HasIndex(a => a.AccessedAt);
     }
 }

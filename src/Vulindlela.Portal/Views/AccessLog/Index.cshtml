@@ -1,0 +1,74 @@
+
+@model List<Vulindlela.Portal.Models.Auth.AccessLog>
+
+@{
+    ViewData["Title"] = "My Access Log";
+}
+
+<h2>Citizen Record Access Log</h2>
+
+<p>
+    This page shows who has accessed the selected
+    citizen's appointment records.
+</p>
+
+@if (User.IsInRole("Official"))
+{
+    <form method="get" asp-action="Index">
+        <div class="mb-3">
+            <label for="citizenId" class="form-label">
+                Citizen ID
+            </label>
+
+            <input
+                type="text"
+                id="citizenId"
+                name="citizenId"
+                value="@ViewBag.CitizenId"
+                class="form-control"
+                required />
+
+            <button type="submit"
+                    class="btn btn-primary mt-2">
+                View Access Log
+            </button>
+        </div>
+    </form>
+}
+
+@if (Model.Count == 0)
+{
+    <div class="alert alert-info">
+        No access log entries found.
+    </div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Accessed At (UTC)</th>
+                <th>Accessed By</th>
+                <th>Role</th>
+                <th>Reason</th>
+                <th>Resource</th>
+                <th>Resource ID</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var log in Model)
+            {
+                <tr>
+                    <td>
+                        @log.AccessedAt.ToString("yyyy-MM-dd HH:mm:ss")
+                    </td>
+                    <td>@log.AccessedBy</td>
+                    <td>@log.AccessedByRole</td>
+                    <td>@log.Reason</td>
+                    <td>@log.ResourceType</td>
+                    <td>@log.ResourceId</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

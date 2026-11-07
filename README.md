@@ -231,8 +231,6 @@ Latest verified result: 12 passed, 0 failed, 0 skipped.
   - Sign out and sign in as citizen2.
   - Try to access citizen1’s record to see if access is denied.
   - Sign in as official1 and view citizen appointment records.
-  - Stop the Clearance API and demonstrate that the Booking API can still be used.
-  - Start the Clearance API.
   - Run dotnet test and demonstrate that all tests are passing.
 
 # Architecture Decision Records

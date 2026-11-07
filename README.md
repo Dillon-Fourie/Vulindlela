@@ -2,151 +2,279 @@
 
  # Project Overview
 
-This is a software engineering project developed as part of the Eduvos ITEHA3-44 assignment.
-This project is an attempt to provide a modular and flexible architecture to the application to automate the processes of government services.
-The application comprises modules for appointment booking, clearance processing, and a citizen portal.
+   The limitations of the legacy government appointment booking system have been addressed by Vulindlela by separating booking, document clearance and citizen-facing services into distinct components. With Vulindlela, citizens can book government service appointments, track the clearance status of their documents and access their personal records, and authenticated, authorized, and logged audit actions.
+
+   Developed for the Eduvos ITEHA3-44 Software Engineering assignment.
 
 
  # Technology Used
 
-   C# and ASP.NET Core Web API
-
-   .NET 10
-
-   Entity Framework Core
-
-   SQLite
-
-   xUnit
-
-   Git and GitHub
+   - C# and .NET 10
+   - ASP.NET Core Web API and ASP.NET Core MVC and Razor Views
+   - Entity Framework Core and SQLite
+   - Cookie authentication and JWT bearer authentication
+   - ASP.NET Core password hashing
+   - xUnit and ASP.NET Core integration testing
+   - Git and GitHub
 
 
 # Solution Structure
 
 The solution comprises the following projects:
-
-   Vulindlela.Booking.Api - This project manages bookings by citizens for specific time slots for various government services.
-
-   Vulindlela.Clearance.Api - Processes clearances.
-
-   Vulindlela.Portal - Citizen Portal
-
-   Vulindlela.Shared - Shared Contracts and Common Types
-
-   Vulindlela.Booking.Tests - Automated tests for the Booking Module
+   - Vulindlela.Booking.Api – Appointment booking, branch availability and concurrency protection and API access auditing
+   - Vulindlela.Clearance.Api – Document clearance and asynchronous verification and booking notifications
+   - Vulindlela.Portal – Authentication, appointment management and access history
+   - Vulindlela.Shared – Contracts and common types
+   - Vulindlela.Booking.Tests – Automated booking and API security tests
 
 
-# The Booking Module is implemented using a layered architecture.
+# System Architecture
 
- # Presentation Layer
-   This layer defines a set of endpoints for the citizens to book various government services.
+   Responsibilities for subsystems are separated.
 
- # Business Logic Layer
-   The layer validates the citizens' booking requests, and determines the availability of the requested appointment time. The layer also handles various booking conflicts.
+   The Booking API follows a three-tier architecture:
+   - The Presentation tier, which consists of controllers, exposes HTTP endpoints and enforces authorization on request.
+   - The Business Logic tier, consists of services, which validate booking requests and check availability, and apply booking rules.
+   - The Data Access tier, consists of repositories and Entity Framework Core, which persists booking to the SQLite database.
+   - The Clearance API processes verification work asynchronously using a background worker and channel based queues.
 
- # Data Access Layer
+   The Portal uses named HTTP clients to communicate with the APIs.
 
- The layer uses Entity Framework Core to access the Booking Module's SQLite database.
+# Prerequisites
 
-# Getting Started
+Install:
 
- # Prerequisites
-   Installing .NET 10 SDK
-   Git
-   Visual Studio Code
+- .NET 10 SDK
+- Git
+- Visual Studio Code or Visual Studio
 
+# Clone and Build
 
-# Copy the Repository
+git clone https://github.com/Dillon-Fourie/Vulindlela.git
+cd Vulindlela
+dotnet restore
+dotnet build
 
-   git clone https://github.com/Dillon-Fourie/Vulindlela.git
-   cd Vulindlela
+# Configure JWT Authentication
 
-# Build the Solution
-   dotnet build
+When the Portal makes authenticated calls to the Booking API, it receives short-lived JWTs on behalf of the user. Both services have to use the same signing key.
+The key is stored in .NET user secrets and not committed to source control.
 
-# Run Booking API
-   dotnet run -p src/Vulindlela.Booking.Api
+Initialise User Secrets:
+   dotnet user-secrets init --project .\src\Vulindlela.Portal
+   dotnet user-secrets init --project .\src\Vulindlela.Booking.Api  
 
-During development, the Booking API is accessible at: http://localhost:5112
+A signing key is generated and saved in an environment variable on your machine. 
+   $keyBytes = New-Object byte[] 64
+   $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+   $rng.GetBytes($keyBytes)
+   $rng.Dispose()
+   $jwtKey = [Convert]::ToBase64String($keyBytes)
 
-The application automatically makes a SQLite database at start up if the database doesn't already exist.
+   dotnet user-secrets set "Jwt:Key" $jwtKey --project .\src\Vulindlela.Portal
+   dotnet user-secrets set "Jwt:Key" $jwtKey --project .\src\Vulindlela.Booking.Api
 
-# Database Seeding
+   Remove-Variable jwtKey, keyBytes, rng
 
-The Booking API automatically creates 3 branches:
-   Cape Town Civic Services
-   Johannesburg Civic Services
-   Durban Civic Services
+This key must be kept private. Each developer has to generate their own key for local development.
+For local development, use the provided launch profile for the Development environment, which loads User Secrets.
 
-For each branch, the application generates appointment slots for 14 weekdays in the future.
-Appointments are 30-minute long and available from 09:00 to 16:00, on weekdays only.
-The seeding process looks to see if there are already slots booked for that time, and will not generate a duplicate slot.
+# Run the Applications
 
-# Booking API Endpoints
+Open three terminals from the repository root.
 
-   GET - /api/branches - Get a list of all branches
-   GET - /api/branches/{branchId}/slots - Get all available appointment slots for the given branch
-   POST - /api/appointments - Book an appointment
-   GET - /api/appointments/{appointmentId} - Get an appointment
+   Terminal 1: Booking API
+   Address: http://localhost:5112
 
-# Example Booking Request
-   POST /api/appointments
+   Terminal 2: Clearance API
+   Address: http://localhost:5165
 
+   Terminal 3: Citizen Portal
+   Address: http://localhost:5138
+
+   Open http://localhost:5138 in your browser.
+
+Applications initialize their local SQLite databases and seed sample data.
+
+# Demonstration Accounts
+
+Username  - Password        - Role     - Citizen ID
+citizen1  - Citizen1!Demo   - Citizen  - TEST-CITIZEN-005
+citizen2  - Citizen2!Demo   - Citizen  - TEST-CITIZEN-006
+official1 - Official1!Demo  - Official - N/A
+
+# Booking Functionality
+
+The Booking API provides:
+
+List of Branches
+   - Available appointment slots
+   - Creates appointment slots
+   - Retrieves appointment slots
+   - Citizen appointment history
+   - Double-booking is prevented
+
+Three demonstration branches are provided:
+   - Cape Town Civic Services
+   - Johannesburg Civic Services
+   - Durban Civic Services
+
+Each branch has 14 appointment slots for weekdays in the future. Each slot is 30 minutes, beginning at 9 am and ending at 4 pm.
+
+Booking API Endpoints:
+
+   Method - Endpoint                              - Purpose
+   GET    - /api/branches                         - Get branches
+   GET    - /api/branches/{branchId}/slots        - Get branch slots
+   POST   - /api/appointments                     - Create appointment
+   GET    - /api/appointments/{appointmentId}     - Get appointment
+   GET    - /api/appointments/citizen/{citizenId} - Get citizen appointments
+   GET    - /api/accesslogs/citizen/{citizenId}   - Get citizen access logs
+
+Appointment and audit endpoints require JWT. Citizens are only allowed to view their own appointment details, while officials are allowed to view all appointment records.
+
+Example Booking Request
    {
-   "slotId": 1,
-   "citizenId": "test-citizen-001",
-   "citizenIdNumber": "9001015009087",
-   "citizenName": "Test Citizen",
-   "serviceType": "ID Application"
+  "slotId": 1,
+  "citizenId": "TEST-CITIZEN-005",
+  "citizenIdNumber": "9001015009087",
+  "citizenName": "Test Citizen",
+  "serviceType": "ID Application"
    }
 
-Replace slotId with an available future appointment slot ID.
-The API returns:
-   201 Created for successful bookings.
-   400 Bad Request for invalid booking information.
-   404 Not Found if the requested appointment is already booked, or if the requested appointment slot does not exist.
-   409 Conflict for duplicate bookings.
+The slot ID should correspond to an available future appointment slot. When making an appointment through the Portal, a citizen is restricted to the appointment record for his/her/their authenticated citizen ID.
 
-# Preventing Double-Bookings
+# Preventing Double Bookings
 
-   Each appointment slot is only allowed to have 1 citizen booked.
-   The Booking API persists appointments and uses a unique SQLite index on Appointment.SlotId to prevent duplicate appointments.
-   The Business Logic Layer (along with a unique constraint) performs availability checks to ensure the slot is not already booked.
-   Conflicting bookings are returned by the API as a booking error.
-   This design choice along with alternatives are documented in:
-   docs/adr/0002-preventing-double-booking.md
+Every appointment slot is restricted to one user.
+
+The Booking API implements this business rule and ensures database uniqueness through the following mechanisms:
+   - Business Rule Availability checks
+   - Database uniqueness constraint on Appointment.SlotId
+   - Competing Request Handling
+
+The database uniqueness constraint ensures that concurrent requests for the same appointment slot cannot succeed.
+
+The rationale for the design is explained in detail in docs/adr/0002-preventing-double-booking.md.
+
+# Document Clearance
+
+The Clearance API is responsible for handling document clearance requests and checking the status of documents.
+
+Its processing involves
+   - Receiving a document clearance request
+   - Marking the request as pending
+   - Queueing the request for verification
+   - Performing verification asynchronously
+   - Marking the request as verified or not verified
+
+The Booking API creates appointments and notifies the Clearance API. Separating the clearance and appointment processing services is deliberate. If the clearance processing service fails, appointment booking should still be allowed.
+
+# Authentication and Authorisation
+
+The Portal uses cookie-based authentication. Passwords are hashed using ASP.NET Core. The Booking API uses JWT bearer token authentication.
+
+Other controls include:
+  - Authentication before booking
+  - Role-based permissions for citizens and officials
+  - Citizen ownership checks on appointment records
+  - JWT verification for protected Booking API endpoints
+  - Reject unauthenticated requests
+  - Access-denied responses for unauthorized record access
+
+# Access Auditing
+
+Both the Portal and Booking API log citizen record access.
+
+Access audit records include:
+  - Citizen ID
+  - Username of the record access user
+  - User role
+  - UTC timestamp
+  - Reason for access
+  - Resource type and identifier
+
+The Portal combines its own audit records with audit records from the Booking API. Citizens can view their access audit records. Officials can view access audit records for citizens they are authorized to access.
 
 # Automated Testing
 
-The Booking API uses xUnit and in-memory SQLite databases.
+There are 12 xUnit testing tests as part of the solution.
 
-The tests verify:
-      Successful appointment bookings.
-      Rejection of bookings for slots that don’t exist.
-      Rejection of bookings for slots that are already taken.
-      Rejection of bookings for sequential duplicate slots.
-      Concurrent bookings for the same slot.
-      Uniqueness of appointments at the database level.
+   The tests cover:
+   - Booking functionality
+   - Concurrency protection
+   - API security
 
-# Run the Tests
+   Security integration tests include:
+   - Unauthenticated requests result in a status code 401.
+   - Citizens cannot access another citizen’s appointments.
+   - Officials can access citizen appointments.
+   - Successful authorized reads create audit records.
 
-   dotnet test tests/Vulindlela.Booking.Tests
+The security integration tests use a separate in-memory SQLite database and test-only authentication identities.
 
-   The test fixture creates separate SQLite connections with a shared in-memory database, allowing concurrent operations without a non-thread-safe connection object.
-   At the time of the Deliverable 2 review, all 7 tests passed, including the original starter test.
+# Run Tests
+
+From the repository root:
+   dotnet test
+
+Latest verified result: 12 passed, 0 failed, 0 skipped.
+
+# Suggested Demonstration
+
+  - Launch the three apps.
+  - Sign in as citizen1.
+  - Check the branches and appointment slots.
+  - Make an appointment.
+  - Go to My Appointments to view the appointment.
+  - Go to Access Log to view the logged access.
+  - Sign out and sign in as citizen2.
+  - Try to access citizen1’s record to see if access is denied.
+  - Sign in as official1 and view citizen appointment records.
+  - Stop the Clearance API and demonstrate that the Booking API can still be used.
+  - Start the Clearance API.
+  - Run dotnet test and demonstrate that all tests are passing.
 
 # Architecture Decision Records
 
-Decisions on architecture are documented in the docs/adr directory.
-The ADR on double booking explains the rationale to ensure appointment uniqueness at the database level, and offers alternatives and trade-offs.
+The docs/adr directory contains the architectural decision records prepared for the assignment.
 
-# Additional Setup
+These include the service boundary, double-booking prevention, and other architectural decisions along with alternatives and trade-offs.
 
-Setup for initial assignment is in the SETUP.md file, and offers additional technical information.
+Other initial configuration info is in SETUP.md.
 
-# Development Status
+# Git and Development Workflow
 
-Deliverable 2: The Booking API is developed, and its automated tests are completed. The bookings API is waiting final submission verification.
+Development was done using feature branches and pull requests.
 
-The Clearance API and citizen portal are additional components of the Vulindlela assignment and are not described herein as completed functionality.
+Pull requests covering Authentication and Authorisation are included.
+
+Later pull requests include Booking API security and access auditing.
+
+Git history shows the feature branch workflow and integration into main.
+
+# Known Limitations
+
+Currently SQLite is used only for local development, demonstration and test databases. SQLite should NOT be used for production-scale database deployments.
+
+Development accounts are locally seeded demonstration accounts.
+
+JWTs keys are stored locally and shared between the Portal and the Booking API via user secrets.
+
+Local HTTP endpoints are development endpoints and must NOT be used for production. Development endpoints must be secured using SSL.
+
+Cleared verification is hard coded and is NOT connected to a government authority.
+
+The Vulindlela solution does NOT use a real national identity provider.
+
+The Portals and the Booking APIs audit events are stored separately and merged for display.
+
+The Booking API database uses an incremental table-initialization approach; in a production environment, a consistent EF Core migration strategy should be used.
+
+Some integrations use best-effort communication, whereas production systems should use communication with guaranteed delivery.
+
+# Project Status
+
+The Vulindlela solution implements a layered Booking API, MVC Portal, authentication, authorization, and access auditing as required by the assignment. It also implements automated testing and the GitHub feature branch workflow.
+
+The application is a proof-of-concept and should NOT be used for production government services.

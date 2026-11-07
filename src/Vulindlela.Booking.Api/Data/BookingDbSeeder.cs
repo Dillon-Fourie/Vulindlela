@@ -16,6 +16,7 @@ public class BookingDbSeeder
     public async Task SeedAsync()
     {
         await _dbContext.Database.EnsureCreatedAsync();
+        await EnsureAccessLogTableAsync();
 
         // Create the three branches if they do not exist.
         if (!await _dbContext.Branches.AnyAsync())
@@ -104,4 +105,36 @@ public class BookingDbSeeder
 
         await _dbContext.SaveChangesAsync();
     }
+
+
+private async Task EnsureAccessLogTableAsync()
+{
+    await _dbContext.Database.ExecuteSqlRawAsync(
+        """
+        CREATE TABLE IF NOT EXISTS "BookingAccessLogs" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_BookingAccessLogs" PRIMARY KEY AUTOINCREMENT,
+            "CitizenId" TEXT NOT NULL,
+            "AccessedBy" TEXT NOT NULL,
+            "AccessedByRole" TEXT NOT NULL,
+            "AccessedAt" TEXT NOT NULL,
+            "Reason" TEXT NOT NULL,
+            "ResourceType" TEXT NOT NULL,
+            "ResourceId" TEXT NOT NULL
+        );
+        """);
+
+    await _dbContext.Database.ExecuteSqlRawAsync(
+        """
+        CREATE INDEX IF NOT EXISTS "IX_BookingAccessLogs_CitizenId"
+        ON "BookingAccessLogs" ("CitizenId");
+        """);
+
+    await _dbContext.Database.ExecuteSqlRawAsync(
+        """
+        CREATE INDEX IF NOT EXISTS "IX_BookingAccessLogs_AccessedAt"
+        ON "BookingAccessLogs" ("AccessedAt");
+        """);
+}
+
+
 }

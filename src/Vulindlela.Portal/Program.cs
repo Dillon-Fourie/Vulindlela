@@ -1,18 +1,23 @@
+
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Vulindlela.Portal.Authorization;
 using Vulindlela.Portal.Data;
 using Vulindlela.Portal.Models.Auth;
-using Vulindlela.Portal.Authorization;
-using Microsoft.AspNetCore.Authorization;
-
+using Vulindlela.Portal.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add MVC services.
 builder.Services.AddControllersWithViews();
 
-// HTTP client for the Booking API.
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddScoped<JwtTokenService>();
+
+builder.Services.AddTransient<BookingApiAuthHandler>();
+
 builder.Services.AddHttpClient("BookingApi", client =>
 {
     client.BaseAddress = new Uri(
@@ -20,9 +25,9 @@ builder.Services.AddHttpClient("BookingApi", client =>
         ?? "http://localhost:5112/");
 
     client.Timeout = TimeSpan.FromSeconds(5);
-});
+})
+.AddHttpMessageHandler<BookingApiAuthHandler>();
 
-// HTTP client for the Clearance API.
 builder.Services.AddHttpClient("ClearanceApi", client =>
 {
     client.BaseAddress = new Uri(
@@ -32,19 +37,20 @@ builder.Services.AddHttpClient("ClearanceApi", client =>
     client.Timeout = TimeSpan.FromSeconds(2);
 });
 
-builder.Services.AddScoped<
-    Vulindlela.Portal.Services.AppointmentPortalService>();
+builder.Services.AddScoped<AppointmentPortalService>();
 
-builder.Services.AddScoped<
-    Vulindlela.Portal.Services.AccessLogService>();
+builder.Services.AddScoped<AccessLogService>();
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
+{
     options.UseSqlite(
         builder.Configuration.GetConnectionString("AuthDatabase")
         ?? throw new InvalidOperationException(
-            "AuthDatabase connection string is missing.")));
+            "AuthDatabase connection string is missing."));
+});
 
-builder.Services.AddScoped<IPasswordHasher<ApplicationUser>,
+builder.Services.AddScoped<
+    IPasswordHasher<ApplicationUser>,
     PasswordHasher<ApplicationUser>>();
 
 builder.Services
@@ -78,7 +84,8 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+    var db = scope.ServiceProvider
+        .GetRequiredService<AuthDbContext>();
 
     db.Database.Migrate();
 
@@ -88,8 +95,6 @@ using (var scope = app.Services.CreateScope())
     await AuthSeeder.SeedAsync(db, passwordHasher);
 }
 
-
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -97,9 +102,11 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
 app.UseRouting();
 
 app.UseAuthentication();
+
 app.UseAuthorization();
 
 app.MapStaticAssets();

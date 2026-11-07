@@ -1,25 +1,54 @@
 
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Vulindlela.Booking.Api.Services;
 
 namespace Vulindlela.Booking.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/appointments")]
 public class AppointmentsController : ControllerBase
 {
-    private readonly IBookingService _bookingService;
+private readonly IBookingService _bookingService;
+private readonly BookingAccessLogService _accessLogService;
 
-    public AppointmentsController(IBookingService bookingService)
-    {
-        _bookingService = bookingService;
-    }
+public AppointmentsController(
+    IBookingService bookingService,
+    BookingAccessLogService accessLogService)
+{
+    _bookingService = bookingService;
+    _accessLogService = accessLogService;
+}
 
-    // POST: api/appointments
     [HttpPost]
     public async Task<IActionResult> BookAppointment(
         [FromBody] BookingRequest request)
     {
+        if (!User.IsInRole("Official"))
+        {
+            if (!User.IsInRole("Citizen"))
+            {
+                return Forbid();
+            }
+
+            var signedInCitizenId = User.FindFirstValue("CitizenId");
+
+            if (string.IsNullOrWhiteSpace(signedInCitizenId))
+            {
+                return Forbid();
+            }
+
+            if (!string.Equals(
+                request.CitizenId,
+                signedInCitizenId,
+                StringComparison.Ordinal))
+            {
+                return Forbid();
+            }
+        }
+
         var result = await _bookingService
             .BookAppointmentAsync(request);
 
@@ -59,7 +88,6 @@ public class AppointmentsController : ControllerBase
             });
     }
 
-    // GET: api/appointments/1
     [HttpGet("{appointmentId:int}")]
     public async Task<IActionResult> GetAppointment(
         int appointmentId)
@@ -74,6 +102,19 @@ public class AppointmentsController : ControllerBase
                 Message = "Appointment not found."
             });
         }
+
+        if (!CanAccessCitizen(appointment.CitizenId))
+        {
+            return Forbid();
+        }
+
+        await _accessLogService.RecordAccessAsync(
+            appointment.CitizenId,
+            User.Identity?.Name ?? "Unknown",
+            User.IsInRole("Official") ? "Official" : "Citizen",
+            "Viewed appointment details",
+            "Appointment",
+            appointment.AppointmentId.ToString());
 
         return Ok(new
         {
@@ -92,17 +133,30 @@ public class AppointmentsController : ControllerBase
         });
     }
 
-
     [HttpGet("citizen/{citizenId}")]
-    public async Task<IActionResult> GetCitizenAppointments(string citizenId)
+    public async Task<IActionResult> GetCitizenAppointments(
+        string citizenId)
     {
         if (string.IsNullOrWhiteSpace(citizenId))
         {
             return BadRequest("A valid citizen ID is required.");
         }
 
+        if (!CanAccessCitizen(citizenId))
+        {
+            return Forbid();
+        }
+
         var appointments = await _bookingService
             .GetAppointmentsByCitizenIdAsync(citizenId);
+
+        await _accessLogService.RecordAccessAsync(
+                citizenId,
+                User.Identity?.Name ?? "Unknown",
+                User.IsInRole("Official") ? "Official" : "Citizen",
+                "Viewed citizen appointments",
+                "AppointmentList",
+                citizenId);
 
         return Ok(appointments.Select(a => new
         {
@@ -121,5 +175,24 @@ public class AppointmentsController : ControllerBase
         }));
     }
 
+    private bool CanAccessCitizen(string citizenId)
+    {
+        if (User.IsInRole("Official"))
+        {
+            return true;
+        }
 
+        if (!User.IsInRole("Citizen"))
+        {
+            return false;
+        }
+
+        var signedInCitizenId = User.FindFirstValue("CitizenId");
+
+        return !string.IsNullOrWhiteSpace(signedInCitizenId)
+            && string.Equals(
+                signedInCitizenId,
+                citizenId,
+                StringComparison.Ordinal);
+    }
 }
